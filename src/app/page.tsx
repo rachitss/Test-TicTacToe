@@ -125,7 +125,10 @@ export default function Home() {
 
   return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
-        <h1 className="text-6xl font-bold mb-4 text-blue-600 text-center text-stroke-black-4">Blue XO</h1>
+        <h1 className="text-6xl font-bold text-blue-600 text-center">Blue XO</h1>
+        <h2 className="text-2xl font-semibold text-black-500 text-center mb-4">
+          TicTookMyTac
+        </h2>
         <div className="grid grid-cols-3 gap-4 mt-4">
           {board.map((cell, index) => (
               <button
