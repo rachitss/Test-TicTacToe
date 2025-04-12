@@ -10,20 +10,25 @@ export default function Home() {
   const [currentPlayer, setCurrentPlayer] = useState("X");
   const [winner, setWinner] = useState<string | null>(null);
   const [isDraw, setIsDraw] = useState(false);
+  const [gameStarted, setGameStarted] = useState(false);
   const [gameTime, setGameTime] = useState(0);
-  const [gameActive, setGameActive] = useState(true);
+  const [gameActive, setGameActive] = useState(false);
 
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
 
-    if (gameActive) {
+    if (gameActive && gameStarted) {
       intervalId = setInterval(() => {
         setGameTime((prevTime) => prevTime + 1);
       }, 1000);
     }
 
+    if (!gameStarted) {
+      setGameTime(0);
+    }
+
     return () => clearInterval(intervalId);
-  }, [gameActive]);
+  }, [gameActive, gameStarted]);
 
   const checkWinner = (board: (string | null)[]) => {
     const lines = [
@@ -40,7 +45,7 @@ export default function Home() {
     for (let i = 0; i < lines.length; i++) {
       const [a, b, c] = lines[i];
       if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-        return board[a];
+        return { winner: board[a], line: lines[i] };
       }
     }
 
@@ -52,15 +57,16 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (!gameActive) return;
+    if (!gameActive || !gameStarted) return;
 
-    const winner = checkWinner(board);
+    const result = checkWinner(board);
     const draw = checkDraw(board);
 
-    if (winner) {
-      setWinner(winner);
-      setGameActive(false);
-      return;
+    if (result) {
+      setWinner(result.winner);
+      setWinningLine(result.line);
+      setGameActive(false)
+      return
     }
 
     if (draw) {
@@ -71,7 +77,7 @@ export default function Home() {
   }, [board, gameActive]);
 
   const handleClick = (index: number) => {
-    if (board[index] || winner || isDraw) return;
+    if (!gameStarted || !gameActive || board[index] || winner || isDraw) return;
 
     const newBoard = [...board];
     newBoard[index] = currentPlayer;
@@ -85,82 +91,109 @@ export default function Home() {
     setWinner(null);
     setIsDraw(false);
     setGameTime(0);
-    setGameActive(true);
+    setGameActive(false);
+    setGameStarted(false);
+    setWinningLine(null);
+  };
+
+  const [winningLine, setWinningLine] = useState<number[] | null>(null);
+
+  const surrenderGame = () => {
+    if (!gameStarted || !gameActive) return;
+    const otherPlayer = currentPlayer === "X" ? "O" : "X";
+    setWinner(otherPlayer);
+    setGameActive(false);
+  };
+
+  const getCellStyle = (index: number) => {
+    let baseStyle = "w-24 h-24 rounded-lg text-5xl font-bold flex items-center justify-center shadow-md transition-colors duration-300 text-black bg-sky-100 hover:bg-sky-200";
+    if (winningLine && winningLine.includes(index)) {
+      baseStyle += winner === "X" ? " bg-red-300" : " bg-green-300";
+    } else {
+      baseStyle += " hover:bg-sky-200";
+    }
+    return baseStyle;
   };
 
   const formatTime = (time: number): string => {
     const minutes = Math.floor(time / 60);
     const seconds = time % 60;
-    return `${minutes.toString().padStart(2, "0")}:${seconds
+    return `${minutes.toString().padStart(2, "0")}:${seconds.toString()
       .toString()
       .padStart(2, "0")}`;
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4">
-      <h1 className="text-4xl font-bold mb-4 text-primary">Aqua Tac Toe</h1>
-
-      <div className="mb-4">
-        Time Elapsed: <span className="font-semibold">{formatTime(gameTime)}</span>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        {board.map((cell, index) => (
-          <button
-            key={index}
-            className={`w-24 h-24 rounded-lg text-5xl font-bold flex items-center justify-center shadow-md transition-colors duration-300
-              ${cell === "X"
-                ? "text-cyan-600 bg-cyan-100 hover:bg-cyan-200"
-                : cell === "O"
-                ? "text-turquoise-600 bg-turquoise-100 hover:bg-turquoise-200"
-                : "bg-white hover:bg-teal-50"
-              }
-            `}
-            onClick={() => handleClick(index)}
-            disabled={cell || winner || isDraw}
-          >
-            {cell}
-          </button>
-        ))}
-      </div>
-
-      {winner && (
-        <div className="mt-6 text-2xl font-semibold text-primary">
-          {winner} wins!
+      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+        <h1 className="text-6xl font-bold mb-4 text-blue-600 text-center text-stroke-black-4">Blue XO</h1>
+        <div className="grid grid-cols-3 gap-4 mt-4">
+          {board.map((cell, index) => (
+              <button
+                  key={index}
+                  data-index={index}
+                  style={{
+                    backgroundColor: winningLine?.includes(index)
+                        ? winner === "X"
+                            ? "#fca5a5"
+                            : "#bbf7d0"
+                        : "",
+                  }}
+                  className={getCellStyle(index)}
+                  onClick={() => handleClick(index)}
+                  disabled={!gameStarted || cell || winner || isDraw}
+              >
+                {cell}
+              </button>
+          ))}
         </div>
-      )}
+        {winner && (
+            <div className="mt-6 text-2xl font-semibold text-blue-900">
+              {winner} wins
+            </div>
+        )}
 
-      {isDraw && (
-        <div className="mt-6 text-2xl font-semibold text-primary">
-          It's a draw!
+        {isDraw && (
+            <div className="mt-6 text-2xl font-semibold text-blue-900">
+              It's a draw!
+            </div>
+        )}
+
+        <div className="mb-4 mt-6">
+          Time Elapsed: <span className="font-semibold">{formatTime(gameTime)}</span>
         </div>
-      )}
 
-      <div className="mt-8">
-        <span className="mr-2 text-lg">
-          Current Player:
-        </span>
-        <span className={`font-semibold text-lg ${currentPlayer === 'X' ? 'text-cyan-600' : 'text-turquoise-600'}`}>
-          {currentPlayer}
-        </span>
+        {gameStarted && !winner && !isDraw && (
+            <div className="mt-8">
+          <span className="mr-2 text-lg">Current Player:</span>
+              <span
+                  className={`font-semibold text-lg ${currentPlayer === "X" ? "text-cyan-600" : "text-turquoise-600"}`}
+              >
+            {currentPlayer}
+          </span>
+            </div>
+        )}
+
+        {!gameStarted ? (
+            <Button
+                variant="outline"
+                className="mt-6"
+                onClick={() => {
+                  setGameStarted(true);
+                  setGameActive(true);
+                }}
+            >
+              Start Game
+            </Button>
+        ) : (
+            <div className="flex mt-6 space-x-4">
+              <Button variant="outline" onClick={resetGame}>
+                Reset Game
+              </Button>
+              <Button variant="outline" onClick={surrenderGame}>
+                Surrender
+              </Button>
+            </div>
+        )}
       </div>
-
-      <Button variant="outline" className="mt-6" onClick={resetGame}>
-        Reset Game
-      </Button>
-    </div>
   );
-}
-
-const turquoise = {
-  50: '#E0FFFF',
-  100: '#B4E4E4',
-  200: '#88D4D4',
-  300: '#5AC4C4',
-  400: '#40B4B4',
-  500: '#26A4A4',
-  600: '#159494',
-  700: '#0A8484',
-  800: '#047474',
-  900: '#006464',
 }
